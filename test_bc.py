@@ -663,3 +663,42 @@ def test_clone_main_interactive() -> None:
     ):
         bc_clone.main()
         mock_run.assert_called_once()
+
+
+def test_clone_cli_multiple_files_and_stdin(tmp_path: Path) -> None:
+    # Multiple files sequentially evaluated
+    p1 = tmp_path / "test1.bc"
+    p1.write_text("a = 10\n")
+    p2 = tmp_path / "test2.bc"
+    p2.write_text("b = 20; a + b\n")
+    code, stdout, stderr = run_clone_bc("", flags=[str(p1), str(p2)])
+    assert code == 0
+    assert stdout.strip() == "30"
+
+    # File followed by stdin in non-interactive mode
+    p = tmp_path / "test_stdin.bc"
+    p.write_text("scale = 5\n")
+    code, stdout, stderr = run_clone_bc("1 / 3\n", flags=[str(p)])
+    assert code == 0
+    assert stdout.strip() == ".33333"
+
+
+def test_clone_cli_math_scale() -> None:
+    # -l flag sets scale to 20 by default
+    code, stdout, stderr = run_clone_bc("scale\n", flags=["-l"])
+    assert code == 0
+    assert stdout.strip() == "20"
+
+
+def test_scale_register_preservation() -> None:
+    # Scale register preservation during math function execution
+    programs = [
+        "scale = 5; s(0.5); scale",
+        "scale = 3; c(0.2); scale",
+        "scale = 7; a(1); scale",
+        "scale = 2; l(2); scale",
+        "scale = 4; e(1); scale",
+        "scale = 6; j(1, 2); scale",
+    ]
+    for prog in programs:
+        check_differential(prog, flags=["-l"])
