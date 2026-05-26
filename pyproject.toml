@@ -1,0 +1,28 @@
+[project]
+name = "bc-clone"
+version = "0.1.0"
+description = "POSIX-compliant bc clone in Python"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.14",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "RET", "SIM", "ARG"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
