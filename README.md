@@ -1,5 +1,8 @@
 # bc-clone
 
+> [!NOTE]
+> This project was fully designed, implemented, verified, and documented by an AI coding agent.
+
 A robust, pure Python (Standard Library only), POSIX-compliant clone of the classic `bc` arbitrary-precision calculator language. 
 
 Designed to serve as a production-grade, zero-dependency utility, this implementation complies with the IEEE Std 1003.1-2008 (POSIX) specification for `bc`. It is verified using a differential testing harness against the system `bc` as an oracle, and maintains **100% statement and branch coverage** across all modules.
