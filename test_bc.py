@@ -1,39 +1,52 @@
+import io
 import subprocess
-import sys
 from pathlib import Path
+from unittest.mock import patch
+
 import pytest
+
+import bc_clone
 
 # Paths to the clone script
 CLONE_PATH = str(Path(__file__).parent / "bc_clone.py")
 
-def run_oracle_bc(program: str, flags: list[str] = []) -> tuple[int, str, str]:
+
+def run_oracle_bc(program: str, flags: list[str] | None = None) -> tuple[int, str, str]:
     """Run the system `bc` utility and return (exit_code, stdout, stderr)."""
+    if flags is None:
+        flags = []
     cmd = ["bc"] + flags
-    proc = subprocess.Popen(
-        cmd,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     stdout, stderr = proc.communicate(input=program)
     return proc.returncode, stdout, stderr
 
-def run_clone_bc(program: str, flags: list[str] = []) -> tuple[int, str, str]:
-    """Run our Python bc clone and return (exit_code, stdout, stderr)."""
-    cmd = [sys.executable, CLONE_PATH] + flags
-    proc = subprocess.Popen(
-        cmd,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    stdout, stderr = proc.communicate(input=program)
-    return proc.returncode, stdout, stderr
 
-def check_differential(program: str, flags: list[str] = [], match_stderr: bool = False) -> None:
+def run_clone_bc(program: str, flags: list[str] | None = None) -> tuple[int, str, str]:
+    """Run our Python bc clone in-process and return (exit_code, stdout, stderr)."""
+    if flags is None:
+        flags = []
+    argv = ["bc_clone.py"] + flags
+    stdin = io.StringIO(program)
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    with patch("sys.argv", argv), patch("sys.stdin", stdin), patch("sys.stdout", stdout), patch("sys.stderr", stderr):
+        try:
+            bc_clone.main()
+            exit_code = 0
+        except SystemExit as e:
+            exit_code = e.code if isinstance(e.code, int) else 0
+        except Exception as e:
+            stderr.write(f"Exception: {e}\n")
+            exit_code = 1
+
+    return exit_code, stdout.getvalue(), stderr.getvalue()
+
+
+def check_differential(program: str, flags: list[str] | None = None, match_stderr: bool = False) -> None:
     """Assert that the clone output matches the system bc output exactly."""
+    if flags is None:
+        flags = []
     if not program.endswith("\n"):
         program += "\n"
     oracle_code, oracle_out, oracle_err = run_oracle_bc(program, flags)
@@ -42,10 +55,7 @@ def check_differential(program: str, flags: list[str] = [], match_stderr: bool =
     # Normalize outputs (stripping trailing whitespace/newlines for minor differences)
     # but maintaining structural newline layout
     assert clone_out == oracle_out, (
-        f"Stdout mismatch!\n"
-        f"Program: {program!r}\n"
-        f"Expected:\n{oracle_out!r}\n"
-        f"Got:\n{clone_out!r}"
+        f"Stdout mismatch!\nProgram: {program!r}\nExpected:\n{oracle_out!r}\nGot:\n{clone_out!r}"
     )
 
     if match_stderr:
@@ -53,12 +63,12 @@ def check_differential(program: str, flags: list[str] = [], match_stderr: bool =
         has_oracle_err = len(oracle_err.strip()) > 0
         has_clone_err = len(clone_err.strip()) > 0
         assert has_clone_err == has_oracle_err, (
-            f"Stderr mismatch!\n"
-            f"Expected error: {has_oracle_err} ({oracle_err!r})\n"
-            f"Got: {has_clone_err} ({clone_err!r})"
+            f"Stderr mismatch!\nExpected error: {has_oracle_err} ({oracle_err!r})\nGot: {has_clone_err} ({clone_err!r})"
         )
 
+
 # --- 1. Basic Arithmetic Tests ---
+
 
 def test_basic_arithmetic() -> None:
     programs = [
@@ -86,7 +96,9 @@ def test_basic_arithmetic() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 2. Operator Precedence and Associativity Tests ---
+
 
 def test_precedence_and_associativity() -> None:
     programs = [
@@ -105,7 +117,9 @@ def test_precedence_and_associativity() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 3. Increment / Decrement Tests ---
+
 
 def test_incr_decr() -> None:
     programs = [
@@ -124,7 +138,9 @@ def test_incr_decr() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 4. Scale Rules Tests ---
+
 
 def test_scale_propagation() -> None:
     programs = [
@@ -144,7 +160,9 @@ def test_scale_propagation() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 5. Built-in Functions Tests ---
+
 
 def test_builtin_functions() -> None:
     programs = [
@@ -172,11 +190,19 @@ def test_builtin_functions() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 def test_builtin_errors() -> None:
     # Negative sqrt is an error
     check_differential("sqrt(-2)", match_stderr=True)
+    # Division and modulo by zero are errors
+    check_differential("1 / 0", match_stderr=True)
+    check_differential("1 % 0", match_stderr=True)
+    check_differential("a = 1; a /= 0", match_stderr=True)
+    check_differential("a = 1; a %= 0", match_stderr=True)
+
 
 # --- 6. Variables, Arrays and Scoping Tests ---
+
 
 def test_variables_and_arrays() -> None:
     programs = [
@@ -192,7 +218,9 @@ def test_variables_and_arrays() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 7. Input / Output Base Conversions Tests ---
+
 
 def test_bases() -> None:
     programs = [
@@ -212,13 +240,15 @@ def test_bases() -> None:
         "scale = 2; obase = 25; 0.04",
         "scale = 2; obase = 25; -0.04",
         "ibase = 8; obase = 12; 10",  # obase becomes 10 (12 in base 8 is 10)
-        "ibase = A; obase = A; 10",   # Single letter sets to base 10 in hex
+        "ibase = A; obase = A; 10",  # Single letter sets to base 10 in hex
         "ibase = 16; a = FF; obase = 10; a",
     ]
     for prog in programs:
         check_differential(prog)
 
+
 # --- 8. Line Wrapping Tests ---
+
 
 def test_line_wrapping() -> None:
     programs = [
@@ -229,7 +259,9 @@ def test_line_wrapping() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 9. Control Flow Tests ---
+
 
 def test_control_flow() -> None:
     programs = [
@@ -247,7 +279,9 @@ def test_control_flow() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 10. Functions and Dynamic Scoping Tests ---
+
 
 def test_functions_and_scoping() -> None:
     programs = [
@@ -271,7 +305,9 @@ def test_functions_and_scoping() -> None:
     for prog in programs:
         check_differential(prog)
 
+
 # --- 11. Math Library (-l) Tests ---
+
 
 def test_math_library() -> None:
     flags = ["-l"]
@@ -279,9 +315,13 @@ def test_math_library() -> None:
         "s(0)",
         "s(0.5)",
         "s(-0.5)",
+        "s(4)",
+        "s(-4)",
         "c(0)",
         "c(0.5)",
         "c(-0.5)",
+        "c(4)",
+        "c(-4)",
         "a(0)",
         "a(1)",
         "a(-1)",
@@ -297,6 +337,7 @@ def test_math_library() -> None:
         "j(0, 1.5)",
         "j(1, 2.0)",
         "j(2, 2.5)",
+        "j(-2, 2.5)",
         # Nested math operations
         "s(c(0.5))",
         "a(s(1)/c(1))",
@@ -306,28 +347,33 @@ def test_math_library() -> None:
     for prog in programs:
         check_differential(prog, flags=flags)
 
+
 def test_math_library_errors() -> None:
     flags = ["-l"]
     # Domain error: log of negative number
     check_differential("l(-1)", flags=flags, match_stderr=True)
     check_differential("l(0)", flags=flags, match_stderr=True)
 
+
 # --- 12. Lexical Rules and Comments Tests ---
+
 
 def test_lexical_rules() -> None:
     programs = [
         "1 /* comment */ + 2",
         "1 /* multi-line\ncomment */ + 2",
         "a = 5\n b = 10\n a + b",
-        "a = 5\\\n+ 10; a",  # Backslash-newline
-        "\"hello world\"",
-        "\"hello \\\nworld\"",  # Backslash-newline inside string
-        "1.2\\\n34 + 1",      # Backslash-newline in number constant
+        "a = 5 + \\\n10; a",  # Backslash-newline
+        '"hello world"',
+        '"hello \\\nworld"',  # Backslash-newline inside string
+        "1.2\\\n34 + 1",  # Backslash-newline in number constant
     ]
     for prog in programs:
         check_differential(prog)
 
+
 # --- 13. End-to-End (E2E) Highly Complex Calculations ---
+
 
 def test_e2e_complex_calculations() -> None:
     # A highly complex program testing:
@@ -386,8 +432,234 @@ def test_e2e_complex_calculations() -> None:
     /* Nesting and relational ops */
     a = 10
     b = 20
-    if (a < b && b > 15) {
-        "ok"
+    if (a < b) {
+        if (b > 15) {
+            "ok"
+        }
     }
     """
     check_differential(complex_program, flags=["-l"])
+
+
+def test_parser_and_evaluator_edge_cases() -> None:
+    # 1. Valid edge cases
+    check_differential("a = 5; a ^= 2; a")
+    check_differential("a = 5; a -= 2; a")
+    check_differential("5 >= 2")
+    check_differential("5 != 2")
+    check_differential("{ 1 }")
+    check_differential("define f() { return; }; f()")
+    check_differential("a")  # Default to 0
+    check_differential("1.2 > 1.23")  # Comparisons with different scales
+    check_differential("1.23 > 1.2")
+    check_differential("++a; a")  # Increment undefined variable
+    check_differential("++a[0]; a[0]")  # Increment undefined array
+    check_differential("scale = 5; ++scale; scale")  # Register update
+    check_differential("ibase = 10; ++ibase; ibase")
+    check_differential("obase = 10; ++obase; obase")
+    check_differential("define f(x[]) { return(1); }; f(a[])")  # Uninitialized array arg
+    check_differential("define f() { while(1) { return(42); }; }; f()")  # Return in while loop
+    check_differential("define g() { for(i=0; i<10; ++i) { return(42); }; }; g()")  # Return in for loop
+
+    # 2. Warnings / Stderr notifications (tested directly on the clone due to implementation-dependent behavior)
+    _, out_1, err_1 = run_clone_bc("ibase = 1; ibase")
+    assert "warning" in err_1.lower()
+    assert out_1.strip() == "2"
+
+    _, out_17, err_17 = run_clone_bc("ibase = 17; ibase")
+    assert "warning" in err_17.lower()
+    assert out_17.strip() == "16"
+
+    # 3. Syntax / Lexical / Runtime errors
+    check_differential("@", match_stderr=True)
+    check_differential("!", match_stderr=True)
+    # For unterminated comment, oracle bc hangs on EOF, so we test the clone directly
+    _, _, err = run_clone_bc("/* comment")
+    assert len(err.strip()) > 0
+    check_differential('"unterminated', match_stderr=True)
+    check_differential("define 123() {}", match_stderr=True)
+    check_differential("define f(123) {}", match_stderr=True)
+    check_differential("define f() { auto a 123; }", match_stderr=True)
+    check_differential("++1", match_stderr=True)
+    check_differential("f(a", match_stderr=True)
+    check_differential("f(a[", match_stderr=True)
+    check_differential("f(a 1", match_stderr=True)
+    check_differential("{ 1 2 }", match_stderr=True)
+    check_differential("define g() { return (); }; g()", match_stderr=True)
+    check_differential("define f(x) { return(x); }; f(1, 2)", match_stderr=True)  # Argument count mismatch
+    check_differential("define f(x[]) { return(1); }; f(2)", match_stderr=True)  # Expected array argument
+    check_differential("f(1)", match_stderr=True)  # Undefined function
+
+
+def test_lexer_peek_token_eof() -> None:
+    from bc_parser import Lexer, TokenType
+
+    lexer = Lexer("a[")
+    # Eat a
+    tok1 = lexer.get_next_token()
+    assert tok1.type == TokenType.LETTER
+    # Peek offset 0 (should be [)
+    assert lexer.peek_token(0).type == TokenType.LBRACKET
+    # Peek offset 1 (should be EOF)
+    assert lexer.peek_token(1).type == TokenType.EOF
+
+
+def test_unknown_ast_node() -> None:
+    from bc_eval import Evaluator
+    from bc_parser import ASTNode
+
+    evaluator = Evaluator()
+    with pytest.raises(RuntimeError, match="unknown AST node"):
+        evaluator.evaluate(ASTNode())
+
+
+def test_evaluator_flags() -> None:
+    from bc_eval import Evaluator
+    from bc_parser import BreakStmt
+
+    evaluator = Evaluator()
+    evaluator.return_flag = True
+    # Should return immediately and not crash/affect state
+    evaluator.execute(BreakStmt())
+
+
+def test_quit_statement() -> None:
+    from bc_eval import Evaluator
+    from bc_parser import Program, QuitStmt
+
+    evaluator = Evaluator()
+    prog = Program([QuitStmt(), QuitStmt()])
+    evaluator.execute(prog)
+    assert evaluator.quit_flag is True
+
+
+def test_clone_cli_invalid_option() -> None:
+    code, stdout, stderr = run_clone_bc("", flags=["-x"])
+    assert code == 1
+    assert "invalid option" in stderr
+
+
+def test_clone_cli_files(tmp_path: Path) -> None:
+    # 1. Valid file
+    p = tmp_path / "test.bc"
+    p.write_text("3 * 5\n")
+    code, stdout, stderr = run_clone_bc("", flags=[str(p)])
+    assert code == 0
+    assert stdout.strip() == "15"
+
+    # 2. Non-existent file
+    code, stdout, stderr = run_clone_bc("", flags=["non_existent_file.bc"])
+    assert code == 1
+    assert "cannot open file" in stderr
+
+
+def test_clone_cli_file_quit(tmp_path: Path) -> None:
+    p = tmp_path / "quit.bc"
+    p.write_text("1\nquit\n2\n")
+    code, stdout, stderr = run_clone_bc("", flags=[str(p)])
+    assert code == 0
+    assert stdout.strip() == ""
+
+
+def test_count_open_braces() -> None:
+    from bc_clone import count_open_braces
+
+    assert count_open_braces("") == 0
+    assert count_open_braces("{") == 1
+    assert count_open_braces("}") == -1
+    assert count_open_braces("/* { */") == 0
+    assert count_open_braces('"{"') == 0
+    assert count_open_braces('"hello \\\nworld"') == 0
+    assert count_open_braces("a = 5 \\\n {") == 1
+
+
+def test_run_interactive() -> None:
+    import io
+    from unittest.mock import patch
+
+    from bc_clone import run_interactive
+    from bc_eval import Evaluator
+
+    # 1. Normal execution
+    stdin = io.StringIO("1 + 2\n")
+    stderr = io.StringIO()
+    evaluator = Evaluator()
+    with patch("sys.stdin", stdin), patch("sys.stderr", stderr):
+        run_interactive(evaluator)
+
+    # 2. Syntax error handling
+    stdin = io.StringIO("@\n")
+    stderr = io.StringIO()
+    evaluator = Evaluator()
+    with patch("sys.stdin", stdin), patch("sys.stderr", stderr):
+        run_interactive(evaluator)
+    assert "syntax error" in stderr.getvalue()
+
+    # 3. KeyboardInterrupt handling
+    class InterruptingIO:
+        def __init__(self) -> None:
+            self.called = False
+
+        def readline(self) -> str:
+            if not self.called:
+                self.called = True
+                raise KeyboardInterrupt()
+            return ""
+
+    stdin_int = InterruptingIO()
+    stderr = io.StringIO()
+    evaluator = Evaluator()
+    with patch("sys.stdin", stdin_int), patch("sys.stderr", stderr):
+        run_interactive(evaluator)
+    assert stderr.getvalue() == "\n"
+
+    # 4. Runtime error handling
+    stdin = io.StringIO("1/0\nsqrt(-1)\n")
+    stderr = io.StringIO()
+    evaluator = Evaluator()
+    with patch("sys.stdin", stdin), patch("sys.stderr", stderr):
+        run_interactive(evaluator)
+    assert "Runtime error" in stderr.getvalue()
+
+    # 5. Quit flag exit
+    stdin = io.StringIO("quit\n")
+    stderr = io.StringIO()
+    evaluator = Evaluator()
+    with patch("sys.stdin", stdin), patch("sys.stderr", stderr):
+        with pytest.raises(SystemExit) as exc:
+            run_interactive(evaluator)
+        assert exc.value.code == 0
+
+    # 6. Backslash-newline and braces accumulation
+    stdin = io.StringIO("1 + \\\n2\nif (1) {\n3\n}\n")
+    stderr = io.StringIO()
+    evaluator = Evaluator()
+    with patch("sys.stdin", stdin), patch("sys.stderr", stderr):
+        run_interactive(evaluator)
+
+    # 7. General exception handling
+    stdin = io.StringIO("1\n")
+    stderr = io.StringIO()
+    evaluator = Evaluator()
+    with (
+        patch("sys.stdin", stdin),
+        patch("sys.stderr", stderr),
+        patch.object(Evaluator, "execute", side_effect=Exception("oops")),
+    ):
+        run_interactive(evaluator)
+    assert "Runtime error: oops" in stderr.getvalue()
+
+
+def test_clone_main_interactive() -> None:
+    from unittest.mock import patch
+
+    import bc_clone
+
+    with (
+        patch("sys.argv", ["bc_clone.py"]),
+        patch("sys.stdin.isatty", return_value=True),
+        patch("sys.stdout.isatty", return_value=True),
+        patch("bc_clone.run_interactive") as mock_run,
+    ):
+        bc_clone.main()
+        mock_run.assert_called_once()

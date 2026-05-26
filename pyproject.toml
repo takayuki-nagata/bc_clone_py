@@ -15,12 +15,12 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "RET", "SIM", "ARG"]
-ignore = []
+ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
