@@ -702,3 +702,43 @@ def test_scale_register_preservation() -> None:
     ]
     for prog in programs:
         check_differential(prog, flags=["-l"])
+
+
+def test_gnu_extension_return() -> None:
+    # Test return expression without parentheses (GNU extension)
+    programs = [
+        "define f(x) { return x * 2; }; f(5)",
+        "define f(x) { if (x == 0) return 0; return x + f(x-1); }; f(5)",
+        "define f() { return; }; f()",
+    ]
+    for prog in programs:
+        check_differential(prog)
+
+
+def test_user_fib_sqrt_demo() -> None:
+    demo_program = """
+    scale = 5
+    "--- Complex Calculation Demo ---\\n"
+    "1. Fibonacci Function\\n"
+    define fib(n) {
+        auto a, b, c, i
+        a = 0; b = 1
+        if (n == 0) return a
+        if (n == 1) return b
+        for (i = 2; i <= n; ++i) {
+            c = a + b
+            a = b
+            b = c
+        }
+        return b
+    }
+    "fib(12) = "
+    fib(12)
+    "2. Square Root\\n"
+    "sqrt(fib(12)) = "
+    sqrt(fib(12))
+    "3. Math Library (e^1)\\n"
+    "e(1) = "
+    e(1)
+    """
+    check_differential(demo_program, flags=["-l"])

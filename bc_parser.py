@@ -556,6 +556,15 @@ class Parser:
                 expr = self.parse_expression()
                 self.eat(TokenType.RPAREN)
                 return ReturnStmt(expr)
+            # GNU extension: return without parentheses
+            if self.current_token.type not in (
+                TokenType.NEWLINE,
+                TokenType.SEMICOLON,
+                TokenType.RBRACE,
+                TokenType.EOF,
+            ):
+                expr = self.parse_expression()
+                return ReturnStmt(expr)
             return ReturnStmt(None)
         if t == TokenType.FOR:
             self.eat(TokenType.FOR)

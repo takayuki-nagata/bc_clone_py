@@ -42,6 +42,7 @@ Standard Python `decimal.Decimal` does not align well with the POSIX `bc` specif
 * **Parser**: Recursive descent parser.
   * It translates statement blocks, loops, function definitions, parameters, and global arrays into AST nodes (`Program`, `FuncDef`, `IfStmt`, `WhileStmt`, `ForStmt`, `Assign`, etc.).
   * **NoReturn Errors**: The lexer and parser utilize `self.error()` which throws a `SyntaxError` and is annotated as returning `NoReturn`. When modifying control flows or adding error checks, do **not** add return statements after calling `self.error()`, as doing so results in dead code (violating 100% test coverage rules). Instead, mark the containing function/method with `# noqa: RET503` if Ruff requests an explicit return signature.
+  * **GNU Return Extension**: While POSIX standard grammar defines the value-returning syntax as `Return '(' return_expression ')'` (mandating enclosing parentheses), this implementation includes a GNU `bc` extension. It detects if a `return` token is followed by a token other than a statement terminator (like `NEWLINE`, `SEMICOLON`, `RBRACE`, or `EOF`) and parses it as a standalone expression, making it compatible with non-parenthesized return statements.
 
 ### 3. `bc_eval.py`: Scoping & Evaluation
 * **Dynamic Scoping**: `bc` utilizes dynamic scoping. When a function is called, variables/arrays declared in the `auto` list or as parameters must shadow their previous values.

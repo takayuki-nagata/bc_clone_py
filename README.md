@@ -17,6 +17,7 @@ Designed to serve as a production-grade, zero-dependency utility, this implement
 - **Math Library (`-l`)**: Complete implementation of standard `bc` math library functions (`s` for sine, `c` for cosine, `e` for exponential, `l` for natural logarithm, `a` for arctangent, and `j` for bessel) computed to arbitrary precision using Taylor series expansions.
 - **Interactive REPL**: A responsive read-eval-print loop with standard error handling and formatting.
 - **Zero Runtime Dependencies**: Written entirely using Python's standard library. Fully typed (`mypy --strict`) and formatted (`ruff`).
+- **GNU Extensions Support**: Supports `return expression` without enclosing parentheses (in addition to standard POSIX `return (expression)`).
 
 ---
 
