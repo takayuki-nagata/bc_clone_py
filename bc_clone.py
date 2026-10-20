@@ -122,12 +122,22 @@ def run_non_interactive(evaluator: Evaluator, content: str, filename: str) -> No
         sys.exit(1)
 
 
-def main() -> None:
-    math_enabled = False
+def _isatty(stream: object) -> bool:
+    """Return whether stream is a terminal; MicroPython streams have no isatty and are consoles."""
+    isatty = getattr(stream, "isatty", None)
+    return True if isatty is None else bool(isatty())
+
+
+def main(argv: list[str] | None = None, mathlib: bool = False) -> None:
+    """Run bc with argv (default: sys.argv[1:]); mathlib=True is the same as -l."""
+    math_enabled = mathlib
     files = []
 
+    if argv is None:
+        argv = sys.argv[1:]
+
     # Parse options manually to match POSIX style
-    for arg in sys.argv[1:]:
+    for arg in argv:
         if arg == "-l":
             math_enabled = True
         elif arg.startswith("-"):
@@ -152,11 +162,19 @@ def main() -> None:
         run_non_interactive(evaluator, content, filename)
 
     # Process standard input
-    is_interactive = sys.stdin.isatty() and sys.stdout.isatty()
+    is_interactive = _isatty(sys.stdin) and _isatty(sys.stdout)
     if is_interactive:
         run_interactive(evaluator)
     else:
         run_non_interactive(evaluator, sys.stdin.read(), "standard input")
+
+
+def repl(mathlib: bool = False) -> None:
+    """Run bc on stdin and return on quit or EOF instead of exiting (entry point for MicroPython)."""
+    try:  # noqa: SIM105
+        main([], mathlib)
+    except SystemExit:
+        pass
 
 
 if __name__ == "__main__":  # pragma: no cover

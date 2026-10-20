@@ -678,6 +678,38 @@ def test_clone_main_interactive() -> None:
         mock_run.assert_called_once()
 
 
+class _ConsoleStream(io.StringIO):
+    """A stream without isatty, like MicroPython's sys.stdin/sys.stdout."""
+
+    isatty = None  # type: ignore[assignment]
+
+
+def test_clone_main_without_isatty() -> None:
+    # Streams without isatty (MicroPython) are consoles: read line by line
+    stdin = _ConsoleStream("define f(n) {\nif (n < 2) return 1; return n * f(n - 1)\n}\nf(20)\n4*a(1)\n")
+    stdout = _ConsoleStream()
+    with patch("sys.argv", []), patch("sys.stdin", stdin), patch("sys.stdout", stdout):
+        bc_clone.main([], mathlib=True)
+    assert stdout.getvalue() == "2432902008176640000\n3.14159265358979323844\n"
+
+
+def test_clone_main_argv_argument() -> None:
+    # argv given directly replaces sys.argv[1:]
+    stdin = io.StringIO("scale\n")
+    stdout = io.StringIO()
+    with patch("sys.argv", ["bc_clone.py", "-x"]), patch("sys.stdin", stdin), patch("sys.stdout", stdout):
+        bc_clone.main(["-l"])
+    assert stdout.getvalue() == "20\n"
+
+
+def test_clone_repl_returns_on_quit() -> None:
+    stdin = _ConsoleStream("1 + 2\nquit\n3 + 4\n")
+    stdout = _ConsoleStream()
+    with patch("sys.stdin", stdin), patch("sys.stdout", stdout):
+        bc_clone.repl()
+    assert stdout.getvalue() == "3\n"
+
+
 def test_clone_cli_multiple_files_and_stdin(tmp_path: Path) -> None:
     # Multiple files sequentially evaluated
     p1 = tmp_path / "test1.bc"
