@@ -787,3 +787,36 @@ def test_user_fib_sqrt_demo() -> None:
     e(1)
     """
     check_differential(demo_program, flags=["-l"])
+
+
+# --- MicroPython self-tests ---
+
+
+def test_selftest_expected_values_match_system_bc() -> None:
+    import bc_selftest
+
+    for name, mathlib, program, expected in bc_selftest.CASES:
+        _, oracle_out, _ = run_oracle_bc(program, ["-l"] if mathlib else [])
+        assert oracle_out == expected, name
+
+
+def test_selftest_run_passes(capsys: pytest.CaptureFixture[str]) -> None:
+    import bc_selftest
+
+    assert bc_selftest.run() is True
+    out = capsys.readouterr().out
+    assert out.count("[PASS]") == len(bc_selftest.CASES)
+    assert out.endswith("ALL BC SELF-TESTS PASSED\n")
+
+
+def test_selftest_run_reports_failures(capsys: pytest.CaptureFixture[str]) -> None:
+    import bc_selftest
+
+    cases = [("wrong", False, "1 + 1\n", "3\n"), ("raises", False, "1 / 0\n", "0\n"), ("ok", False, "2\n", "2\n")]
+    with patch.object(bc_selftest, "CASES", cases):
+        assert bc_selftest.run() is False
+    out = capsys.readouterr().out
+    assert "wrong ... [FAIL]" in out
+    assert "exception: ZeroDivisionError" in out
+    assert "ok ... [PASS]" in out
+    assert out.endswith("BC SELF-TESTS FAILED: 2/3 (wrong, raises)\n")

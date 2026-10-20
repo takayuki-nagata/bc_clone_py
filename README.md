@@ -31,6 +31,8 @@ The project is structured into modular components:
 ├── bc_parser.py           # Lexer, Parser, and AST definitions
 ├── bc_math.py             # Custom arbitrary-precision decimal number (BCNum) and Math Library
 ├── bc_eval.py             # AST Evaluator, environment manager (dynamic scope), and output formatter
+├── bc_selftest.py         # Self-tests with embedded expected output (for MicroPython targets)
+├── scripts/               # MicroPython unix-port build, differential runner, and freeze manifest
 ├── test_bc.py             # Differential test suite executing cases on both clone and system bc
 └── .github/workflows/     # CI pipeline running linting, type checks, and 100% coverage verification
 ```
@@ -92,7 +94,7 @@ The test suite utilizes the host system `bc` utility as an oracle for differenti
 
 ```bash
 # Run pytest with full coverage reporting
-uv run pytest --cov=bc_clone --cov=bc_math --cov=bc_parser --cov=bc_eval --cov-report=term-missing test_bc.py
+uv run pytest --cov=bc_clone --cov=bc_math --cov=bc_parser --cov=bc_eval --cov=bc_selftest --cov-report=term-missing test_bc.py
 ```
 
 ### Static Analysis & Quality Controls
@@ -109,3 +111,36 @@ uv run ruff check .
 # Run Ruff formatting verification
 uv run ruff format --check .
 ```
+
+---
+
+## MicroPython
+
+The `micropython` branch runs unchanged on MicroPython 1.29.0 (checked with the unix port; the target is the
+Zephyr port with `MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES`). CPython behavior is identical to `main`.
+
+### On the target
+The modules are flat (`bc_clone`, `bc_eval`, `bc_math`, `bc_parser`, `bc_selftest`) and are meant to be frozen;
+`scripts/manifest.py` freezes them with `module()`.
+
+```python
+>>> import bc_clone
+>>> bc_clone.repl(mathlib=True)   # bc -l on sys.stdin, line by line; returns on quit or EOF
+>>> import bc_selftest
+>>> bc_selftest.run()             # one "<name> ... [PASS]/[FAIL]" line per case, then a summary; returns bool
+```
+
+`bc_clone.main(argv, mathlib)` is the CLI entry point; it raises `SystemExit` on `quit` and on errors in
+non-interactive input, like the CPython CLI. Streams without `isatty` (MicroPython) are read as an interactive console.
+
+### Testing on the unix port
+```bash
+scripts/fetch_micropython.sh                    # fetch v1.29.0 into .cache/ and build ports/unix (VARIANT=standard)
+uv run python scripts/mpy_diff.py               # every differential program of test_bc.py on MicroPython vs system bc
+MICROPYPATH=$PWD .cache/micropython-1.29.0/ports/unix/build-standard/micropython -c "import bc_selftest; bc_selftest.run()"
+```
+
+### Measurements (unix port, 64-bit)
+- Frozen modules: the self-test passes with a 48 KB heap (`-X heapsize=48k`); 32-bit targets need less.
+- The whole input chunk is parsed before execution; the AST costs about 800 bytes per line of input
+  (MicroPython stores instance attributes in a hash map), so feed large programs line by line.

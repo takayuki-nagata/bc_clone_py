@@ -35,7 +35,7 @@ Standard Python `decimal.Decimal` does not align well with the POSIX `bc` specif
   * **Multiplication**: Output scale is $\min(\text{scale}_1 + \text{scale}_2, \max(\text{global\_scale}, \text{scale}_1, \text{scale}_2))$.
   * **Division**: Output scale is always the global `scale` register.
   * **Exponentiation**: Conformant to POSIX scaling rules depending on whether the exponent is negative or positive.
-* **Math Library Functions**: Uses Taylor series approximations to compute trigonometric, logarithmic, and exponential results up to the target scale. Pre-conditions are verified inside the class to maintain bounds stability.
+* **Math Library Functions**: Uses integer fixed-point arithmetic (an `int` scaled by `10**prec`) with Taylor series and argument reduction to compute trigonometric, logarithmic, exponential and Bessel results up to the target scale. Pre-conditions are verified inside the class to maintain bounds stability.
 
 ### 2. `bc_parser.py`: Lexer & AST Nodes
 * **Lexer**: Tokenizes inputs incrementally. It supports standard POSIX comments (`/* ... */`), string literals, backslash-newlines (ignored whitespace), and numbers/identifiers.
@@ -68,7 +68,12 @@ Standard Python `decimal.Decimal` does not align well with the POSIX `bc` specif
 4. Add differential test cases in `test_bc.py` to verify matching behavior with system `bc`.
 
 ### Modifying the Math Library
-* Trigonometric or transcendental computations in `bc_math.py` should be computed to a higher intermediate precision (typically `scale + 5`) to prevent rounding errors before truncation to the final `scale`.
+* Trigonometric or transcendental computations in `bc_math.py` should be computed to a higher intermediate precision (`scale + 15` guard digits, plus the integer digits of the argument or result where they amplify the error) to prevent rounding errors before truncation to the final `scale`.
+
+---
+
+### MicroPython Compatibility (`micropython` branch)
+This branch must also run on MicroPython 1.29.0 (Zephyr port, frozen modules). Do not use: `decimal`, `dataclasses`, `enum`, runtime `typing` (guard imports with `try/except ImportError`), `math.isqrt`, `int.bit_length`, floats for results (single precision on the target), nested f-string format specs (`f"{x:0{w}d}"`), `str.rjust`/`zfill`/`isalnum`, or assignment to `sys.argv`. After changes, run `scripts/mpy_diff.py` and `bc_selftest.run()` on the unix port built by `scripts/fetch_micropython.sh`.
 
 ---
 

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, micropython ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, micropython ]
 
 jobs:
   test:
@@ -39,4 +39,4 @@ jobs:
 
       - name: Run Tests with Coverage
         run: |
-          uv run pytest --cov=bc_clone --cov=bc_math --cov=bc_parser --cov=bc_eval --cov-report=term-missing --cov-fail-under=100 test_bc.py
+          uv run pytest --cov=bc_clone --cov=bc_math --cov=bc_parser --cov=bc_eval --cov=bc_selftest --cov-report=term-missing --cov-fail-under=100 test_bc.py
