@@ -820,3 +820,16 @@ def test_selftest_run_reports_failures(capsys: pytest.CaptureFixture[str]) -> No
     assert "exception: ZeroDivisionError" in out
     assert "ok ... [PASS]" in out
     assert out.endswith("BC SELF-TESTS FAILED: 2/3 (wrong, raises)\n")
+
+
+def test_run_interactive_reads_with_input_on_micropython() -> None:
+    from bc_eval import Evaluator
+
+    # On MicroPython lines come from input(); EOFError (Ctrl-D) ends the session
+    stdout = io.StringIO()
+    with (
+        patch("bc_clone.IS_MICROPYTHON", True),
+        patch("builtins.input", side_effect=["1 + 2", "if (1) {", "4", "}", EOFError]),
+    ):
+        bc_clone.run_interactive(Evaluator(stdout_stream=stdout))
+    assert stdout.getvalue() == "3\n4\n"

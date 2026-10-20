@@ -42,6 +42,18 @@ def count_open_braces(text: str) -> int:
     return count
 
 
+# MicroPython's console stdin is raw (no echo, Enter sends "\r"), so read lines with input() there
+IS_MICROPYTHON = sys.implementation.name == "micropython"
+
+
+def read_console_line() -> str:
+    """Read a line with input(), which echoes and edits the line; return "" on EOF (Ctrl-D)."""
+    try:
+        return input() + "\n"
+    except EOFError:
+        return ""
+
+
 def run_interactive(evaluator: Evaluator) -> None:
     """Read line-by-line and execute complete blocks incrementally."""
     accumulator: list[str] = []
@@ -49,7 +61,7 @@ def run_interactive(evaluator: Evaluator) -> None:
 
     while True:
         try:
-            line = sys.stdin.readline()
+            line = read_console_line() if IS_MICROPYTHON else sys.stdin.readline()
         except KeyboardInterrupt:
             # Handle Ctrl+C gracefully
             sys.stderr.write("\n")
