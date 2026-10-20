@@ -833,3 +833,20 @@ def test_run_interactive_reads_with_input_on_micropython() -> None:
     ):
         bc_clone.run_interactive(Evaluator(stdout_stream=stdout))
     assert stdout.getvalue() == "3\n4\n"
+
+
+def test_wrapped_stdout_without_flush() -> None:
+    from bc_eval import WrappedStdout
+
+    class NoFlushStream:
+        def __init__(self) -> None:
+            self.data = ""
+
+        def write(self, s: str) -> None:
+            self.data += s
+
+    stream = NoFlushStream()
+    writer = WrappedStdout(stream)  # type: ignore[arg-type]
+    writer.write("1\n")
+    writer.flush()
+    assert stream.data == "1\n"

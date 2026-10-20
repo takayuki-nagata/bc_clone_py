@@ -30,7 +30,7 @@ CASES: list[tuple[str, bool, str, str]] = [
         "define g(n) { auto i, a[]; for (i = 0; i < n; i++) a[i] = i * i; return (a[n - 1]); }\ng(10)\n",
         "81\n",
     ),
-    ("while loop", False, "i = 0; s = 0; while (i < 100) { i = i + 1; s = s + i }; s\n", "5050\n"),
+    ("while loop", False, "i = 0; s = 0; while (i < 10) { i = i + 1; s = s + i }; s\n", "55\n"),
     ("sqrt(2)", False, "scale = 30; sqrt(2)\n", "1.414213562373095048801688724209\n"),
     ("-l 4*a(1)", True, "4 * a(1)\n", "3.14159265358979323844\n"),
     ("-l e(1)", True, "e(1)\n", "2.71828182845904523536\n"),

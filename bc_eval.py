@@ -67,7 +67,10 @@ class WrappedStdout:
                 self.col += 1
 
     def flush(self) -> None:
-        self.stream.flush()
+        # Some MicroPython ports' sys.stdout has no flush()
+        flush = getattr(self.stream, "flush", None)
+        if flush is not None:
+            flush()
 
 
 class Evaluator:
