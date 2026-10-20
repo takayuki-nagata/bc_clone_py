@@ -1,57 +1,62 @@
 import sys
-from dataclasses import dataclass
-from enum import Enum
-from enum import auto as enum_auto
-from typing import NoReturn
+
+try:  # noqa: SIM105
+    from typing import NoReturn
+except ImportError:  # pragma: no cover - MicroPython has no typing module
+    pass
 
 
-class TokenType(Enum):
-    EOF = enum_auto()
-    NEWLINE = enum_auto()
-    SEMICOLON = enum_auto()
-    COMMA = enum_auto()
-    LPAREN = enum_auto()
-    RPAREN = enum_auto()
-    LBRACKET = enum_auto()
-    RBRACKET = enum_auto()
-    LBRACE = enum_auto()
-    RBRACE = enum_auto()
+class TokenType:
+    EOF = 1
+    NEWLINE = 2
+    SEMICOLON = 3
+    COMMA = 4
+    LPAREN = 5
+    RPAREN = 6
+    LBRACKET = 7
+    RBRACKET = 8
+    LBRACE = 9
+    RBRACE = 10
 
     # Operators
-    PLUS = enum_auto()
-    MINUS = enum_auto()
-    EXP = enum_auto()  # ^
-    MUL_OP = enum_auto()  # *, /, %
-    REL_OP = enum_auto()  # ==, <=, >=, !=, <, >
-    INCR_DECR = enum_auto()  # ++, --
-    ASSIGN_OP = enum_auto()  # =, +=, -=, *=, /=, %=, ^=
+    PLUS = 11
+    MINUS = 12
+    EXP = 13  # ^
+    MUL_OP = 14  # *, /, %
+    REL_OP = 15  # ==, <=, >=, !=, <, >
+    INCR_DECR = 16  # ++, --
+    ASSIGN_OP = 17  # =, +=, -=, *=, /=, %=, ^=
 
     # Literals & Identifiers
-    LETTER = enum_auto()  # lowercase letter a-z
-    NUMBER = enum_auto()  # number constant
-    STRING = enum_auto()  # string constant
+    LETTER = 18  # lowercase letter a-z
+    NUMBER = 19  # number constant
+    STRING = 20  # string constant
 
     # Keywords
-    AUTO = enum_auto()
-    BREAK = enum_auto()
-    DEFINE = enum_auto()
-    IBASE = enum_auto()
-    IF = enum_auto()
-    FOR = enum_auto()
-    LENGTH = enum_auto()
-    OBASE = enum_auto()
-    QUIT = enum_auto()
-    RETURN = enum_auto()
-    SCALE = enum_auto()
-    SQRT = enum_auto()
-    WHILE = enum_auto()
+    AUTO = 21
+    BREAK = 22
+    DEFINE = 23
+    IBASE = 24
+    IF = 25
+    FOR = 26
+    LENGTH = 27
+    OBASE = 28
+    QUIT = 29
+    RETURN = 30
+    SCALE = 31
+    SQRT = 32
+    WHILE = 33
 
 
-@dataclass
 class Token:
-    type: TokenType
+    type: int
     value: str
     line: int
+
+    def __init__(self, type: int, value: str, line: int) -> None:  # noqa: A002
+        self.type = type
+        self.value = value
+        self.line = line
 
 
 class Lexer:
@@ -304,149 +309,213 @@ class ASTNode:
     pass
 
 
-@dataclass
 class Program(ASTNode):
     items: list[ASTNode]
 
+    def __init__(self, items: list[ASTNode]) -> None:
+        self.items = items
 
-@dataclass
+
 class StringLiteral(ASTNode):
     value: str
 
+    def __init__(self, value: str) -> None:
+        self.value = value
 
-@dataclass
+
 class BreakStmt(ASTNode):
     pass
 
 
-@dataclass
 class QuitStmt(ASTNode):
     pass
 
 
-@dataclass
 class ReturnStmt(ASTNode):
     expr: ASTNode | None
 
+    def __init__(self, expr: ASTNode | None) -> None:
+        self.expr = expr
 
-@dataclass
+
 class ForStmt(ASTNode):
     init: ASTNode
     cond: ASTNode
     post: ASTNode
     body: ASTNode
 
+    def __init__(self, init: ASTNode, cond: ASTNode, post: ASTNode, body: ASTNode) -> None:
+        self.init = init
+        self.cond = cond
+        self.post = post
+        self.body = body
 
-@dataclass
+
 class IfStmt(ASTNode):
     cond: ASTNode
     body: ASTNode
 
+    def __init__(self, cond: ASTNode, body: ASTNode) -> None:
+        self.cond = cond
+        self.body = body
 
-@dataclass
+
 class WhileStmt(ASTNode):
     cond: ASTNode
     body: ASTNode
 
+    def __init__(self, cond: ASTNode, body: ASTNode) -> None:
+        self.cond = cond
+        self.body = body
 
-@dataclass
+
 class Block(ASTNode):
     stmts: list[ASTNode]
 
+    def __init__(self, stmts: list[ASTNode]) -> None:
+        self.stmts = stmts
 
-@dataclass
+
 class Param:
     name: str
     is_array: bool
 
+    def __init__(self, name: str, is_array: bool) -> None:
+        self.name = name
+        self.is_array = is_array
 
-@dataclass
+
 class FunctionDef(ASTNode):
     name: str
     params: list[Param]
     autos: list[Param]
     body: list[ASTNode]
 
+    def __init__(self, name: str, params: list[Param], autos: list[Param], body: list[ASTNode]) -> None:
+        self.name = name
+        self.params = params
+        self.autos = autos
+        self.body = body
 
-@dataclass
+
 class NumberLiteral(ASTNode):
     value: str
 
+    def __init__(self, value: str) -> None:
+        self.value = value
 
-@dataclass
+
 class Variable(ASTNode):
     name: str
 
+    def __init__(self, name: str) -> None:
+        self.name = name
 
-@dataclass
+
 class ArrayAccess(ASTNode):
     name: str
     index: ASTNode
 
+    def __init__(self, name: str, index: ASTNode) -> None:
+        self.name = name
+        self.index = index
 
-@dataclass
+
 class RegisterAccess(ASTNode):
     name: str  # 'scale', 'ibase', 'obase'
 
+    def __init__(self, name: str) -> None:
+        self.name = name
 
-@dataclass
+
 class CallExpr(ASTNode):
     name: str
     args: list[ASTNode]  # Expr or ArrayArg
 
+    def __init__(self, name: str, args: list[ASTNode]) -> None:
+        self.name = name
+        self.args = args
 
-@dataclass
+
 class ArrayArg(ASTNode):
     name: str
 
+    def __init__(self, name: str) -> None:
+        self.name = name
 
-@dataclass
+
 class UnaryOp(ASTNode):
     op: str  # '-'
     expr: ASTNode
 
+    def __init__(self, op: str, expr: ASTNode) -> None:
+        self.op = op
+        self.expr = expr
 
-@dataclass
+
 class BinaryOp(ASTNode):
     op: str
     left: ASTNode
     right: ASTNode
 
+    def __init__(self, op: str, left: ASTNode, right: ASTNode) -> None:
+        self.op = op
+        self.left = left
+        self.right = right
 
-@dataclass
+
 class RelationalOp(ASTNode):
     op: str
     left: ASTNode
     right: ASTNode
 
+    def __init__(self, op: str, left: ASTNode, right: ASTNode) -> None:
+        self.op = op
+        self.left = left
+        self.right = right
 
-@dataclass
+
 class UpdateOp(ASTNode):
     op: str  # '++', '--'
     is_prefix: bool
     target: ASTNode
 
+    def __init__(self, op: str, is_prefix: bool, target: ASTNode) -> None:
+        self.op = op
+        self.is_prefix = is_prefix
+        self.target = target
 
-@dataclass
+
 class AssignOp(ASTNode):
     op: str
     target: ASTNode
     expr: ASTNode
 
+    def __init__(self, op: str, target: ASTNode, expr: ASTNode) -> None:
+        self.op = op
+        self.target = target
+        self.expr = expr
 
-@dataclass
+
 class LengthCall(ASTNode):
     expr: ASTNode
 
+    def __init__(self, expr: ASTNode) -> None:
+        self.expr = expr
 
-@dataclass
+
 class SqrtCall(ASTNode):
     expr: ASTNode
 
+    def __init__(self, expr: ASTNode) -> None:
+        self.expr = expr
 
-@dataclass
+
 class ScaleCall(ASTNode):
     expr: ASTNode
+
+    def __init__(self, expr: ASTNode) -> None:
+        self.expr = expr
 
 
 # --- Parser ---
@@ -465,13 +534,13 @@ class Parser:
     def error(self, msg: str) -> NoReturn:
         raise SyntaxError(f"Parser error on line {self.current_token.line}: {msg}")
 
-    def eat(self, token_type: TokenType) -> None:
+    def eat(self, token_type: int) -> None:
         if self.current_token.type == token_type:
             self.current_token = self.lexer.get_next_token()
         else:
             self.error(f"expected {token_type}, got {self.current_token.type}")
 
-    def peek_token_type(self, offset: int = 0) -> TokenType:
+    def peek_token_type(self, offset: int = 0) -> int:
         return self.lexer.peek_token(offset).type
 
     def parse_program(self) -> Program:
@@ -505,7 +574,7 @@ class Parser:
             stmt = self.parse_statement()
             stmts.append(stmt)
 
-            curr_type: TokenType = self.current_token.type
+            curr_type: int = self.current_token.type
             if curr_type == TokenType.SEMICOLON:
                 self.eat(TokenType.SEMICOLON)
             else:
@@ -632,14 +701,14 @@ class Parser:
             pname = self.current_token.value
             self.eat(TokenType.LETTER)
             is_arr = False
-            curr_type: TokenType = self.current_token.type
+            curr_type: int = self.current_token.type
             if curr_type == TokenType.LBRACKET:
                 self.eat(TokenType.LBRACKET)
                 self.eat(TokenType.RBRACKET)
                 is_arr = True
             lst.append(Param(pname, is_arr))
 
-            curr_type_comma: TokenType = self.current_token.type
+            curr_type_comma: int = self.current_token.type
             if curr_type_comma == TokenType.COMMA:
                 self.eat(TokenType.COMMA)
             else:
@@ -651,7 +720,7 @@ class Parser:
             return []
         self.eat(TokenType.AUTO)
         lst = self.parse_define_list()
-        curr_type: TokenType = self.current_token.type
+        curr_type: int = self.current_token.type
         if curr_type == TokenType.NEWLINE:
             self.eat(TokenType.NEWLINE)
         elif curr_type == TokenType.SEMICOLON:

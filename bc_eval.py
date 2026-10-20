@@ -1,5 +1,9 @@
 import sys
-from typing import TextIO
+
+try:  # noqa: SIM105
+    from typing import TextIO
+except ImportError:  # pragma: no cover - MicroPython has no typing module
+    pass
 
 from bc_math import (
     BCNum,
