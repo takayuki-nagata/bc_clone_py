@@ -238,6 +238,8 @@ def test_bases() -> None:
         "scale = 2; obase = 25; 1.04",
         "scale = 2; obase = 25; 0.00",
         "scale = 2; obase = 25; 0.04",
+        "obase = 1000; scale = 6; 1/7",
+        "obase = 17; scale = 5; -1/3",
         "scale = 2; obase = 25; -0.04",
         "ibase = 8; obase = 12; 10",  # obase becomes 10 (12 in base 8 is 10)
         "ibase = A; obase = A; 10",  # Single letter sets to base 10 in hex
@@ -343,6 +345,17 @@ def test_math_library() -> None:
         "a(s(1)/c(1))",
         "scale = 25; s(1.0)",
         "scale = 10; e(1)",
+        # Large magnitudes and high scales (integer fixed-point precision)
+        "e(100)",
+        "e(-30)",
+        "l(10^30)",
+        "l(0.0000001)",
+        "j(3, -7.5)",
+        "j(-1, 0.5)",
+        "scale = 50; 4*a(1)",
+        "scale = 40; a(-123)",
+        "scale = 30; c(-20)",
+        "scale = 60; sqrt(2)",
     ]
     for prog in programs:
         check_differential(prog, flags=flags)
